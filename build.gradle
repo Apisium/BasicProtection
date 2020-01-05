@@ -54,4 +54,11 @@ bukkit {
     website = 'apisium.cn'
     author = 'Shirasawa'
     depend = ['KotlinCore']
+
+    commands {
+        bcp {
+            description = 'Basic Protection'
+            usage = '/bcp'
+        }
+    }
 }

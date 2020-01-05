@@ -14,7 +14,8 @@ data class WorldConfig(
         val physicalChangeable: Boolean = true,
         val spanwerMobsSpanwable: Boolean = true,
         val itemsDroppable: Boolean = true,
-        val throwable: Boolean = true,
+        val itemsPickupable: Boolean = true,
+        val itemsCraftable: Boolean = true,
         val flying: Boolean = false,
         val weatherChangeable: Boolean = true,
         val pvp: Boolean = true,
@@ -24,5 +25,13 @@ data class WorldConfig(
         val itemsDamageable: Boolean = true,
         val autoRespawn: Boolean = false,
         val redstoneRemove: Boolean = false,
-        val redstoneThreshold: Int = 20
+        val maxEntitiesPreChunk: Int = -1
+)
+
+@Serializable
+data class GlobalConfig(
+        val entitiesCleanerCheckTime: Int = 5,
+        val redstoneThreshold: Int = 20,
+        val redstoneRemoveMessage: String = "§cHigh frequency redstone signal detected: §eIn ({world},{x},{y},{z})",
+        val entitiesRemoveMessage: String = "§cCrowded farming detected: §eIn ({world},{x},{z})"
 )

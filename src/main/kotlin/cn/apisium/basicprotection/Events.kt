@@ -8,10 +8,8 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.event.block.*
 import org.bukkit.event.entity.*
-import org.bukkit.event.player.PlayerDropItemEvent
-import org.bukkit.event.player.PlayerEggThrowEvent
-import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerItemDamageEvent
+import org.bukkit.event.inventory.CraftItemEvent
+import org.bukkit.event.player.*
 import org.bukkit.event.weather.WeatherChangeEvent
 import org.bukkit.plugin.java.JavaPlugin
 
@@ -21,14 +19,14 @@ class Events(private val plugin: JavaPlugin) : Listener {
     init {
         plugin.server.scheduler.runTaskTimer(plugin, {
             redstoneRecord.clear()
-        }, 50 * 20L, 50 * 20L)
+        }, 5 * 20L, 5 * 20L)
     }
 
     // 耕地保护 & 交互保护 & 禁止发射 & 刷怪笼保护
     @EventHandler
     private fun onPlayerInteract(e: PlayerInteractEvent) {
         if (e.player.isOp) return
-        val cfg = CONFIG[e.clickedBlock.world]!!
+        val cfg = CONFIG[e.clickedBlock?.world ?: e.player.world]!!
 
         val type = e.item?.type
         if (
@@ -50,8 +48,14 @@ class Events(private val plugin: JavaPlugin) : Listener {
 
     // 爆炸保护
     @EventHandler
-    private fun onExplosionPrime(e: EntityExplodeEvent) {
+    private fun onEntityExplode(e: EntityExplodeEvent) {
         if (CONFIG[e.entity.world]!!.explosionProtection) e.blockList().clear()
+    }
+
+    // 爆炸保护
+    @EventHandler
+    private fun onExplosionPrime(e: BlockExplodeEvent) {
+        if (CONFIG[e.block.world]!!.explosionProtection) e.blockList().clear()
     }
 
     // 建造保护
@@ -128,12 +132,13 @@ class Events(private val plugin: JavaPlugin) : Listener {
     @EventHandler
     private fun onEntityShootBow(e: EntityShootBowEvent) {
         val p = e.entity
-        if (e is Player && !p.isOp && !CONFIG[e.player.world]!!.dischargeable) e.isCancelled = true
+        if (p is Player && !p.isOp && !CONFIG[p.world]!!.dischargeable) e.isCancelled = true
     }
 
     // 射了
     @EventHandler
     private fun onPlayerEggThrow(e: PlayerEggThrowEvent) {
+        e.player.isFlying
         if (!e.player.isOp && !CONFIG[e.player.world]!!.dischargeable) e.isHatching = false
     }
 
@@ -167,6 +172,18 @@ class Events(private val plugin: JavaPlugin) : Listener {
         if (!CONFIG[e.block.world]!!.physicalChangeable) e.isCancelled = true
     }
 
+    // 捡了
+    @EventHandler
+    private fun onPlayerAttemptPickupItem(@Suppress("DEPRECATION") e: PlayerPickupItemEvent) {
+        if (!CONFIG[e.player.world]!!.itemsPickupable) e.isCancelled = true
+    }
+
+    // 造了
+    @EventHandler
+    private fun onCraftItem(e: CraftItemEvent) {
+        if (!CONFIG[e.whoClicked.world]!!.itemsCraftable) e.isCancelled = true
+    }
+
     // 红石信号
     @EventHandler
     private fun onBlockRedstone(e: BlockRedstoneEvent) {
@@ -177,11 +194,47 @@ class Events(private val plugin: JavaPlugin) : Listener {
         if (i == null) {
             redstoneRecord[loc] = 1
             i = 1
+        } else {
+            i++
+            redstoneRecord[loc] = i
         }
-        if (i >= cfg.redstoneThreshold) {
+        if (i >= GLOBAL_CONFIG.redstoneThreshold) {
             e.block.breakNaturally()
-            plugin.server.broadcastMessage("§c检测到高频红石: §e${loc.world.name}-${loc.blockX},${loc.blockY},${loc.blockZ}")
+            plugin.server.broadcastMessage(GLOBAL_CONFIG.redstoneRemoveMessage
+                    .replace("{world}", loc.world.name)
+                    .replace("{x}", loc.blockX.toString())
+                    .replace("{y}", loc.blockY.toString())
+                    .replace("{z}", loc.blockZ.toString())
+            )
             redstoneRecord.remove(loc)
         }
+    }
+
+    private fun checkPlayerFlight(p: Player) {
+        if (!p.isOp) return
+        if (CONFIG[p.world]!!.flying) {
+            p.allowFlight = true
+        } else {
+            p.isFlying = false
+            p.allowFlight = false
+        }
+    }
+
+    // 切换世界
+    @EventHandler
+    private fun onPlayerChangedWorld(e: PlayerChangedWorldEvent) {
+        checkPlayerFlight(e.player)
+    }
+
+    // 玩家加入游戏
+    @EventHandler
+    private fun onPlayerJoin(e: PlayerJoinEvent) {
+        checkPlayerFlight(e.player)
+    }
+
+    // 玩家离开游戏
+    @EventHandler
+    private fun onPlayerJoin(e: PlayerQuitEvent) {
+        checkPlayerFlight(e.player)
     }
 }
