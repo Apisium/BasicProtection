@@ -32,6 +32,7 @@ data class WorldConfig(
 data class GlobalConfig(
         val entitiesCleanerCheckTime: Int = 5,
         val redstoneThreshold: Int = 20,
+        val hideMessage: Boolean = false,
         val redstoneRemoveMessage: String = "§cHigh frequency redstone signal detected: §eIn ({world},{x},{y},{z})",
         val entitiesRemoveMessage: String = "§cCrowded farming detected: §eIn ({world},{x},{z})"
 )

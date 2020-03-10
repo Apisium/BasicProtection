@@ -18,7 +18,7 @@ import java.io.File
 import java.util.*
 import kotlin.collections.HashMap
 
-internal lateinit var CONFIG: WeakHashMap<World, WorldConfig>
+internal lateinit var CONFIG: HashMap<World, WorldConfig>
 internal lateinit var GLOBAL_CONFIG: GlobalConfig
 private val JSON = Json(JsonConfiguration.Stable.copy(prettyPrint = true, indent = "  "))
 
@@ -47,7 +47,7 @@ class Main: JavaPlugin(), CommandExecutor {
                 null
             }
         } else null) ?: HashMap()
-        CONFIG = WeakHashMap()
+        CONFIG = HashMap()
         server.worlds.forEach { if (!loaded.containsKey(it.name)) loaded[it.name] = WorldConfig() }
         configPath.writeText(JSON.stringify(loaded))
         loaded.forEach { (k, v) ->
@@ -79,7 +79,7 @@ class Main: JavaPlugin(), CommandExecutor {
                 w.first.loadedChunks.forEach { c ->
                     var entities = c.entities.filter { it is Animals || it is Monster || it is Squid }
                     if (entities.size > w.second) {
-                        server.broadcastMessage(GLOBAL_CONFIG.entitiesRemoveMessage
+                        if (!GLOBAL_CONFIG.hideMessage) server.broadcastMessage(GLOBAL_CONFIG.entitiesRemoveMessage
                                 .replace("{world}", c.world.name)
                                 .replace("{x}", (c.x shl 4).toString())
                                 .replace("{z}", (c.z shl 4).toString())

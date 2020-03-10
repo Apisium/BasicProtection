@@ -1,5 +1,6 @@
 package cn.apisium.basicprotection
 
+import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -7,7 +8,6 @@ import org.bukkit.entity.EntityType
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Player
-import org.bukkit.event.EventPriority
 import org.bukkit.event.block.*
 import org.bukkit.event.entity.*
 import org.bukkit.event.inventory.CraftItemEvent
@@ -21,10 +21,10 @@ class Events(private val plugin: JavaPlugin) : Listener {
     private val redstoneRecord = HashMap<Location, Int>()
 
     init {
-        plugin.server.scheduler.runTaskTimer(plugin, {
-            redstoneRecord.clear()
-            plugin.server.onlinePlayers.forEach(this::checkPlayerFlight)
-        }, 5 * 20L, 5 * 20L)
+//        plugin.server.scheduler.runTaskTimer(plugin, fun () {
+//            plugin.server.onlinePlayers.forEach(this::checkPlayerFlight)
+//        }, 10L, 10L)
+        plugin.server.scheduler.runTaskTimer(plugin, redstoneRecord::clear, 5 * 20L, 5 * 20L)
     }
 
     // 耕地保护 & 交互保护 & 禁止发射 & 刷怪笼保护
@@ -192,6 +192,17 @@ class Events(private val plugin: JavaPlugin) : Listener {
     // 红石信号
     @EventHandler
     private fun onBlockRedstone(e: BlockRedstoneEvent) {
+        val type = e.block.type
+        when (type) {
+            Material.DIODE_BLOCK_OFF -> { }
+            Material.DIODE_BLOCK_ON -> { }
+            Material.DIODE -> { }
+            Material.REDSTONE -> { }
+            Material.REDSTONE_WIRE -> { }
+            Material.REDSTONE_TORCH_OFF -> { }
+            Material.REDSTONE_TORCH_ON -> { }
+            else -> return
+        }
         val cfg = getConfig(e.block.world)
         if (!cfg.redstoneRemove) return
         val loc = e.block.location
@@ -204,10 +215,14 @@ class Events(private val plugin: JavaPlugin) : Listener {
             redstoneRecord[loc] = i
         }
         if (i >= GLOBAL_CONFIG.redstoneThreshold) {
-            val type = e.block.type
-            if (type != Material.DIODE_BLOCK_OFF && type != Material.DIODE_BLOCK_ON &&
-                    type != Material.DIODE) e.block.breakNaturally()
-            plugin.server.broadcastMessage(GLOBAL_CONFIG.redstoneRemoveMessage
+            if (type == Material.DIODE_BLOCK_OFF || type == Material.DIODE_BLOCK_ON ||
+                    type == Material.DIODE) {
+                e.block.type = Material.AIR
+                plugin.server.scheduler.runTaskLater(plugin, fun () {
+                    e.block.type = Material.AIR
+                }, 5L)
+            } else e.block.breakNaturally()
+            if (!GLOBAL_CONFIG.hideMessage) plugin.server.broadcastMessage(GLOBAL_CONFIG.redstoneRemoveMessage
                     .replace("{world}", loc.world.name)
                     .replace("{x}", loc.blockX.toString())
                     .replace("{y}", loc.blockY.toString())
@@ -217,31 +232,37 @@ class Events(private val plugin: JavaPlugin) : Listener {
         }
     }
 
-    private fun checkPlayerFlight(p: Player) {
-        if (!p.isOp) return
-        if (getConfig(p.world).flying) {
-            p.allowFlight = true
-        } else {
-            p.isFlying = false
-            p.allowFlight = false
-        }
-    }
-
-    // 切换世界
-    @EventHandler(priority = EventPriority.MONITOR)
-    private fun onPlayerChangedWorld(e: PlayerChangedWorldEvent) {
-        checkPlayerFlight(e.player)
-    }
-
-    // 玩家加入游戏
-    @EventHandler(priority = EventPriority.MONITOR)
-    private fun onPlayerJoin(e: PlayerJoinEvent) {
-        checkPlayerFlight(e.player)
-    }
-
-    // 玩家离开游戏
-    @EventHandler(priority = EventPriority.MONITOR)
-    private fun onPlayerJoin(e: PlayerQuitEvent) {
-        checkPlayerFlight(e.player)
-    }
+//    private fun checkPlayerFlight(p: Player) {
+//        if (p.isOp || p.gameMode == GameMode.CREATIVE || p.gameMode == GameMode.SPECTATOR || (
+//                        p.hasPermission("essentials.fly") && getConfig(p.world).flying)) {
+//            p.allowFlight = true
+//        } else {
+//            p.isFlying = false
+//            p.allowFlight = false
+//        }
+//    }
+//
+//    // 切换世界
+//    @EventHandler(priority = EventPriority.MONITOR)
+//    private fun onPlayerChangedWorld(e: PlayerChangedWorldEvent) {
+//        plugin.server.scheduler.runTaskTimer(plugin, fun () {
+//            checkPlayerFlight(e.player)
+//        }, 5L, 5L)
+//    }
+//
+//    // 玩家加入游戏
+//    @EventHandler(priority = EventPriority.MONITOR)
+//    private fun onPlayerJoin(e: PlayerJoinEvent) {
+//        plugin.server.scheduler.runTaskTimer(plugin, fun () {
+//            checkPlayerFlight(e.player)
+//        }, 5L, 5L)
+//    }
+//
+//    // 玩家离开游戏
+//    @EventHandler(priority = EventPriority.MONITOR)
+//    private fun onPlayerJoin(e: PlayerQuitEvent) {
+//        plugin.server.scheduler.runTaskTimer(plugin, fun () {
+//            checkPlayerFlight(e.player)
+//        }, 5L, 5L)
+//    }
 }
