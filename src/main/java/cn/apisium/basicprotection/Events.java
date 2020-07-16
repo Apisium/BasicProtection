@@ -1,6 +1,7 @@
 package cn.apisium.basicprotection;
 
 import com.destroystokyo.paper.event.entity.ThrownEggHatchEvent;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -19,8 +20,12 @@ import java.util.HashMap;
 
 final class Events implements Listener {
     private final HashMap<String, Config> worldConfigs;
-    Events(final HashMap<String, Config> worldConfigs) {
+    private final HashMap<Location, Integer> redstoneRecord = new HashMap<>();
+    private final Main plugin;
+    Events(final HashMap<String, Config> worldConfigs, final Main plugin) {
         this.worldConfigs = worldConfigs;
+        this.plugin = plugin;
+        plugin.getServer().getScheduler().runTaskTimer(plugin, redstoneRecord::clear, 5 * 20L, 5 * 20L);
     }
     
     private Config getConfig(final World world) { return worldConfigs.getOrDefault(world.getName(), new Config()); }
@@ -174,5 +179,33 @@ final class Events implements Listener {
         final Config cfg = getConfig(e.getEntity().getWorld());
         if (cfg.preventDamagePlayer) e.setCancelled(true);
         else if (cfg.autoRespawn) e.getEntity().spigot().respawn();
+    }
+
+    @EventHandler
+    private void onBlockRedstone(final BlockRedstoneEvent e) {
+        final Material type = e.getBlock().getType();
+        switch (type) {
+            case REPEATER:
+            case REDSTONE:
+            case COMPARATOR:
+            case REDSTONE_LAMP:
+            case REDSTONE_WIRE:
+            case REDSTONE_TORCH:
+            case POWERED_RAIL:
+            case REDSTONE_WALL_TORCH:
+                break;
+            default: return;
+        }
+        final Config cfg = getConfig(e.getBlock().getWorld());
+        if (!cfg.redstoneRemove) return;
+        final Location loc = e.getBlock().getLocation();
+        final int i = redstoneRecord.get(loc) + 1;
+        redstoneRecord.put(loc, i);
+        if (i >= plugin.redstoneThreshold) {
+            if (type == Material.REPEATER) {
+                e.getBlock().setType(Material.AIR);
+            } else e.getBlock().breakNaturally();
+            redstoneRecord.remove(loc);
+        }
     }
 }

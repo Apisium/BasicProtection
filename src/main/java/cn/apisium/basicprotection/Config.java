@@ -20,4 +20,6 @@ final class Config {
     public boolean preventDamageItems = false;
     public boolean autoRespawn = false;
     public boolean preventIgnite = false;
+    public boolean redstoneRemove = false;
+    public int maxEntitiesPreChunk = -1;
 }
