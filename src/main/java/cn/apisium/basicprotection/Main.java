@@ -32,7 +32,6 @@ import java.util.Random;
 @Description("An simple protection plugin.")
 @Author("Shirasawa")
 @Website("https://apisium.cn")
-@ApiVersion(ApiVersion.Target.v1_13)
 @SoftDependency("Multiverse-Core")
 @SoftDependency("Essentials")
 @SoftDependency("EssentialsX")
@@ -103,5 +102,4 @@ public final class Main extends JavaPlugin {
         }
         return true;
     }
-
 }

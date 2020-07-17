@@ -1,6 +1,5 @@
 package cn.apisium.basicprotection;
 
-import com.destroystokyo.paper.event.entity.ThrownEggHatchEvent;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -39,18 +38,18 @@ final class Events implements Listener {
         if (
             (cfg.preventContainerOpen && (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.PHYSICAL)) ||
                 (cfg.farmProtection && e.getAction() == Action.PHYSICAL && e.getClickedBlock() != null &&
-                    e.getClickedBlock().getType() == Material.FARMLAND) ||
+                    e.getClickedBlock().getType() == Material.SOIL) ||
             (cfg.preventDischarge && (type == Material.EGG || type == Material.ENDER_PEARL)) ||
             (cfg.preventSpawnerChange && e.getAction() == Action.RIGHT_CLICK_BLOCK &&
-                e.getClickedBlock() != null && e.getClickedBlock().getType() == Material.SPAWNER &&
-                type != null && type.name().endsWith("_SPAWN_EGG"))
+                e.getClickedBlock() != null && e.getClickedBlock().getType() == Material.MOB_SPAWNER &&
+                (type == Material.MONSTER_EGGS || type == Material.MONSTER_EGG))
         ) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onEntityInteract(final EntityInteractEvent e) {
         if (getConfig(e.getBlock().getWorld()).farmProtection &&
-            e.getEntityType() != EntityType.PLAYER && e.getBlock().getType() == Material.FARMLAND)
+            e.getEntityType() != EntityType.PLAYER && e.getBlock().getType() == Material.SOIL)
             e.setCancelled(true);
     }
 
@@ -71,7 +70,7 @@ final class Events implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerBucketEmpty(final PlayerBucketEmptyEvent e) {
-        if (!e.getPlayer().isOp() && getConfig(e.getBlock().getWorld()).preventBuild) e.setCancelled(true);
+        if (!e.getPlayer().isOp() && getConfig(e.getBlockClicked().getWorld()).preventBuild) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -81,7 +80,7 @@ final class Events implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerBucketFill(final PlayerBucketFillEvent e) {
-        if (!e.getPlayer().isOp() && getConfig(e.getBlock().getWorld()).preventBreak) e.setCancelled(true);
+        if (!e.getPlayer().isOp() && getConfig(e.getBlockClicked().getWorld()).preventBreak) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -124,11 +123,6 @@ final class Events implements Listener {
     public void onEntityShootBow(final EntityShootBowEvent e) {
         if (e.getEntityType() == EntityType.PLAYER && !e.getEntity().isOp() &&
             getConfig(e.getEntity().getWorld()).preventDischarge) e.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerEggThrow(final ThrownEggHatchEvent e) {
-        if (getConfig(e.getEgg().getWorld()).preventDischarge) e.setHatching(false);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -178,33 +172,47 @@ final class Events implements Listener {
     public void onPlayerDeath(final PlayerDeathEvent e) {
         final Config cfg = getConfig(e.getEntity().getWorld());
         if (cfg.preventDamagePlayer) e.setCancelled(true);
-        else if (cfg.autoRespawn) e.getEntity().spigot().respawn();
+        else {
+            if (plugin.getConfig().getBoolean("keepInventory", false)) {
+                e.setKeepInventory(true);
+                e.setKeepLevel(true);
+            }
+            if (cfg.autoRespawn) plugin.getServer().getScheduler().runTaskLater(plugin, e.getEntity().spigot()::respawn, 5);
+        }
     }
 
     @EventHandler
     private void onBlockRedstone(final BlockRedstoneEvent e) {
         final Material type = e.getBlock().getType();
         switch (type) {
-            case REPEATER:
             case REDSTONE:
-            case COMPARATOR:
-            case REDSTONE_LAMP:
+            case DIODE:
+            case DIODE_BLOCK_OFF:
+            case DIODE_BLOCK_ON:
             case REDSTONE_WIRE:
-            case REDSTONE_TORCH:
+            case REDSTONE_COMPARATOR_OFF:
             case POWERED_RAIL:
-            case REDSTONE_WALL_TORCH:
+            case REDSTONE_COMPARATOR:
+            case REDSTONE_COMPARATOR_ON:
+            case REDSTONE_TORCH_OFF:
+            case REDSTONE_TORCH_ON:
                 break;
             default: return;
         }
         final Config cfg = getConfig(e.getBlock().getWorld());
         if (!cfg.redstoneRemove) return;
         final Location loc = e.getBlock().getLocation();
-        final int i = redstoneRecord.get(loc) + 1;
+        final int i = redstoneRecord.getOrDefault(loc, 0) + 1;
         redstoneRecord.put(loc, i);
         if (i >= plugin.redstoneThreshold) {
-            if (type == Material.REPEATER) {
-                e.getBlock().setType(Material.AIR);
-            } else e.getBlock().breakNaturally();
+            switch (type) {
+                case DIODE:
+                case DIODE_BLOCK_OFF:
+                case DIODE_BLOCK_ON:
+                    e.getBlock().setType(Material.AIR);
+                    break;
+                default: e.getBlock().breakNaturally();
+            }
             redstoneRecord.remove(loc);
         }
     }
